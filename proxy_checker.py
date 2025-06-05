@@ -29,7 +29,7 @@ CONFIG = {
     "timeout_seconds": 15,
     "max_concurrent_fetches": 25,
     "max_concurrent_tests": 200, # You can adjust this based on performance/GHA limits
-    "user_agent": "Mozilla/5.0 (Linux; GitHub Actions) ProxyChecker/2.1",
+    "user_agent": "Mozilla/5.0 (Linux; GitHub Actions) ProxyChecker/2.2", # Incremented version
     "source_fetch_timeout": 20,
     "progress_update_interval_seconds": 5, # How often to log progress summary
 }
@@ -70,19 +70,19 @@ class ProgressReporter:
         current_time = time.time()
         if current_time - self.last_update_time >= CONFIG["progress_update_interval_seconds"] or \
            self.tested_count == self.total_proxies:
-            
+
             elapsed_time = current_time - self.start_time
             proxies_per_second = self.tested_count / elapsed_time if elapsed_time > 0 else 0
-            
-            if self.total_proxies > 0 and self.tested_count > 0:
-                estimated_total_time = (elapsed_time / self.tested_count) * self.total_proxies
+
+            if self.total_proxies > 0 and self.tested_count > 0 and proxies_per_second > 0: # Added check for proxies_per_second
+                estimated_total_time = self.total_proxies / proxies_per_second
                 remaining_time = estimated_total_time - elapsed_time
-                eta_str = f"ETA: {remaining_time:.0f}s"
+                eta_str = f"ETA: {remaining_time:.0f}s" if remaining_time > 0 else "ETA: ..."
             else:
                 eta_str = "ETA: N/A"
 
             progress_percent = (self.tested_count / self.total_proxies * 100) if self.total_proxies > 0 else 0
-            
+
             logger.info(
                 f"Progress: {self.tested_count}/{self.total_proxies} ({progress_percent:.1f}%) | "
                 f"Working: {self.working_count} | Dead: {self.dead_count} | "
@@ -96,22 +96,19 @@ class ProxyTester:
         self.machine_ip: Optional[str] = None
         self.progress_reporter: Optional[ProgressReporter] = None
         self.output_file_lock = asyncio.Lock()
-        # This set tracks proxies already written to file in the current run to avoid duplicates
         self.written_proxies_this_run: Set[str] = set()
 
     async def __aenter__(self):
         connector = aiohttp.TCPConnector(
             limit=CONFIG["max_concurrent_tests"] + CONFIG["max_concurrent_fetches"],
-            limit_per_host=50, # Max concurrent connections to the same host (e.g., httpbin.org)
+            limit_per_host=50,
             ttl_dns_cache=300,
             use_dns_cache=True,
-            # ssl=False # Use this if you encounter many SSL errors with proxies; apply per-request if needed
         )
-        # Overall timeout for each request, including connection, reading headers, and body
         timeout = aiohttp.ClientTimeout(total=CONFIG["timeout_seconds"])
         self.session = aiohttp.ClientSession(
             connector=connector,
-            timeout=timeout, # Default timeout for all requests in this session
+            timeout=timeout,
             headers={"User-Agent": CONFIG["user_agent"]}
         )
         await self._get_machine_ip()
@@ -123,7 +120,6 @@ class ProxyTester:
 
     async def _get_machine_ip(self) -> None:
         try:
-            # Use a short timeout specifically for this, as it's a pre-flight check
             async with self.session.get(CONFIG["test_urls"]["http"], timeout=aiohttp.ClientTimeout(total=10)) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -145,16 +141,16 @@ class ProxyTester:
                     proxy_type = parsed.scheme.lower()
                     if proxy_type in [ProxyType.HTTP, ProxyType.HTTPS, ProxyType.SOCKS4, ProxyType.SOCKS5]:
                         return parsed.hostname, str(parsed.port), proxy_type
-            except ValueError: # Handle potential errors from urlparse
+            except ValueError:
                 logger.debug(f"Could not parse {proxy_str} as URL")
-                pass # Fall through to IP:port check
+                pass
         
         ip_port_match = re.match(r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})$', proxy_str)
         if ip_port_match:
             ip, port_str = ip_port_match.groups()
             port = int(port_str)
             if all(0 <= int(octet) <= 255 for octet in ip.split('.')) and 1 <= port <= 65535:
-                return ip, str(port), ProxyType.HTTP # Default to HTTP for ip:port
+                return ip, str(port), ProxyType.HTTP
         return None
 
     def extract_proxies_from_text(self, text: str) -> Set[str]:
@@ -166,19 +162,18 @@ class ProxyTester:
                 continue
             parsed = self.parse_proxy_url(line)
             if parsed:
-                proxies.add(f"{parsed[0]}:{parsed[1]}") # Store as ip:port
+                proxies.add(f"{parsed[0]}:{parsed[1]}")
         return proxies
 
     async def fetch_proxy_list(self, url: str) -> Set[str]:
         proxies = set()
         try:
             logger.debug(f"Fetching from: {url}")
-            # Use a specific timeout for fetching sources
             fetch_timeout = aiohttp.ClientTimeout(total=CONFIG["source_fetch_timeout"])
-            async with self.session.get(url, timeout=fetch_timeout, ssl=False) as response: # ssl=False for some raw github links
+            async with self.session.get(url, timeout=fetch_timeout, ssl=False) as response:
                 if response.status == 200:
                     content = await response.text(errors='ignore')
-                    try: # Try JSON first
+                    try:
                         data = json.loads(content)
                         if isinstance(data, list):
                             for item in data:
@@ -191,7 +186,7 @@ class ProxyTester:
                              for item in data["data"]:
                                 if isinstance(item, dict) and "ip" in item and "port" in item:
                                     proxies.add(f"{item['ip']}:{item['port']}")
-                    except json.JSONDecodeError: # Fallback to text parsing
+                    except json.JSONDecodeError:
                         proxies.update(self.extract_proxies_from_text(content))
                     
                     if proxies: logger.info(f"Found {len(proxies)} potential proxies from {url}")
@@ -224,27 +219,23 @@ class ProxyTester:
 
     async def _append_working_proxy_to_file(self, proxy_ip_port: str):
         if proxy_ip_port in self.written_proxies_this_run:
-            return # Already written in this cycle
+            return
         
         async with self.output_file_lock:
             try:
                 with open(CONFIG["output_file"], 'a', encoding='utf-8') as f:
                     f.write(f"{proxy_ip_port}\n")
-                self.written_proxies_this_run.add(proxy_ip_port) # Mark as written for this run
+                self.written_proxies_this_run.add(proxy_ip_port)
                 logger.debug(f"Appended working proxy {proxy_ip_port} to {CONFIG['output_file']}")
             except Exception as e:
                 logger.error(f"Error appending proxy {proxy_ip_port} to file: {e}")
 
     async def test_proxy_connectivity(self, proxy_ip_port: str) -> Dict:
-        # The session default timeout (CONFIG["timeout_seconds"]) applies to each get()
-        # request_timeout = aiohttp.ClientTimeout(total=CONFIG["timeout_seconds"]) # Redundant if session has it
-        
         result = {"proxy": proxy_ip_port, "working": False, "http_working": False,
                   "https_working": False, "google_working": False, "anonymity": "unknown",
                   "latency_ms": None, "errors": []}
-        proxy_url = f"http://{proxy_ip_port}" # All tests go through HTTP proxy interface
+        proxy_url = f"http://{proxy_ip_port}"
 
-        # Test HTTP
         try:
             start_time = time.perf_counter()
             async with self.session.get(CONFIG["test_urls"]["http"], proxy=proxy_url, allow_redirects=False) as response:
@@ -261,7 +252,7 @@ class ProxyTester:
                             else: result["anonymity"] = "elite"
                     except Exception as e_json:
                         result["errors"].append(f"HTTP JSON Error: {type(e_json).__name__}")
-                        result["http_working"] = False # Crucial if JSON parsing is part of "working"
+                        result["http_working"] = False
                 else:
                     result["errors"].append(f"HTTP status: {response.status}")
         except asyncio.TimeoutError: result["errors"].append("HTTP Timeout")
@@ -269,8 +260,7 @@ class ProxyTester:
         except aiohttp.ClientError as e_client: result["errors"].append(f"HTTP ClientError: {type(e_client).__name__}")
         except Exception as e: result["errors"].append(f"HTTP Error: {type(e).__name__}")
 
-        # Test HTTPS (only if HTTP was somewhat responsive or if you want to test always)
-        if result["http_working"]: # Or remove this condition to always test HTTPS
+        if result["http_working"]:
             try:
                 async with self.session.get(CONFIG["test_urls"]["https"], proxy=proxy_url, ssl=False, allow_redirects=False) as response:
                     if response.status == 200: result["https_working"] = True
@@ -279,8 +269,7 @@ class ProxyTester:
             except aiohttp.ClientError as e_client: result["errors"].append(f"HTTPS ClientError: {type(e_client).__name__}")
             except Exception as e: result["errors"].append(f"HTTPS Error: {type(e).__name__}")
 
-        # Test Google Connectivity (only if HTTP was somewhat responsive)
-        if result["http_working"]: # Or remove this condition
+        if result["http_working"]:
             try:
                 async with self.session.get(CONFIG["test_urls"]["connectivity"], proxy=proxy_url, ssl=False, allow_redirects=False) as response:
                     if response.status == 204: result["google_working"] = True
@@ -289,7 +278,7 @@ class ProxyTester:
             except aiohttp.ClientError as e_client: result["errors"].append(f"Google ClientError: {type(e_client).__name__}")
             except Exception as e: result["errors"].append(f"Google Error: {type(e).__name__}")
         
-        result["working"] = result["http_working"] and result["google_working"] # Define "working"
+        result["working"] = result["http_working"] and result["google_working"]
 
         if self.progress_reporter:
             await self.progress_reporter.update(result["working"])
@@ -315,10 +304,6 @@ class ProxyTester:
                 return await self.test_proxy_connectivity(proxy_ip_port_task)
 
         tasks = [test_with_semaphore(p) for p in proxies_to_test]
-        
-        # No need to log gathering here, progress_reporter will show updates
-        # logger.info(f"Testing batch of {len(proxies_to_test)} proxies (concurrency: {CONFIG['max_concurrent_tests']})...")
-        
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
         
         processed_results = []
@@ -328,7 +313,6 @@ class ProxyTester:
             elif isinstance(res_item, Exception):
                 failed_proxy = proxies_to_test[i]
                 logger.warning(f"Test task for proxy '{failed_proxy}' failed with exception: {type(res_item).__name__} - {res_item}")
-                # Optionally create a "failed" result dict if needed downstream
                 processed_results.append({"proxy": failed_proxy, "working": False, "errors": [f"Task Exception: {type(res_item).__name__}"]})
         
         return processed_results
@@ -341,43 +325,44 @@ class ProxyTester:
             logger.info(f"Loaded {len(sources)} proxy sources from {CONFIG['proxy_sources_file']}")
         except FileNotFoundError:
             logger.error(f"Proxy sources file {CONFIG['proxy_sources_file']} not found!")
-            sys.exit(1) # Critical error
+            sys.exit(1)
         except Exception as e:
             logger.error(f"Error reading proxy sources: {e}")
-            sys.exit(1) # Critical error
+            sys.exit(1)
         return sources
 
     def _initial_clear_proxies_file(self):
-        """Clears the output proxy file at the start of a cycle."""
         try:
             with open(CONFIG["output_file"], 'w', encoding='utf-8') as f:
-                f.write("") # Truncate the file
-            self.written_proxies_this_run.clear() # Reset for this run
+                f.write("")
+            self.written_proxies_this_run.clear()
             logger.info(f"Cleared existing proxies file: {CONFIG['output_file']} for new cycle.")
         except Exception as e:
             logger.error(f"Error clearing proxies file {CONFIG['output_file']}: {e}")
     
-    def _sort_and_finalize_proxies_file(self):
+    async def _sort_and_finalize_proxies_file(self): # <--- MAKE THIS ASYNC
         """Reads the output file, sorts unique proxies, and writes them back."""
         async with self.output_file_lock: # Ensure no writes happen during this
             try:
                 current_proxies = set()
-                with open(CONFIG["output_file"], 'r', encoding='utf-8') as f:
-                    for line in f:
+                # Standard file I/O can be blocking, consider asyncio.to_thread for large files
+                # For now, assuming this is quick enough not to block the loop significantly.
+                with open(CONFIG["output_file"], 'r', encoding='utf-8') as f_read:
+                    for line in f_read:
                         line = line.strip()
-                        if line and self.parse_proxy_url(line):
+                        if line and self.parse_proxy_url(line): # Validate before adding
                             current_proxies.add(line)
                 
                 sorted_proxies = sorted(list(current_proxies))
                 
-                with open(CONFIG["output_file"], 'w', encoding='utf-8') as f:
+                with open(CONFIG["output_file"], 'w', encoding='utf-8') as f_write:
                     for proxy in sorted_proxies:
-                        f.write(f"{proxy}\n")
+                        f_write.write(f"{proxy}\n")
                 logger.info(f"Finalized and sorted {len(sorted_proxies)} working proxies in {CONFIG['output_file']}")
             except FileNotFoundError:
                 logger.info(f"No {CONFIG['output_file']} to sort (likely no working proxies found).")
             except Exception as e:
-                logger.error(f"Error sorting/finalizing proxies file: {e}")
+                logger.error(f"Error sorting/finalizing proxies file: {e}", exc_info=True)
 
 
     async def run_cycle(self) -> None:
@@ -398,22 +383,19 @@ class ProxyTester:
         proxies_to_test_list = list(fetched_proxies)
         logger.info(f"Total unique proxies to test: {len(proxies_to_test_list)}")
 
-        self.progress_reporter = ProgressReporter(total_proxies=len(proxies_to_test_list))
-        self.progress_reporter.display_progress() # Initial display
+        if not proxies_to_test_list: # Additional check if fetched_proxies was empty
+            logger.warning("No proxies to test after fetching. Ending cycle.")
+            return
 
-        # test_proxies_batch will call test_proxy_connectivity, which handles appending
-        # and progress updates.
-        # all_results will contain dicts for all tested proxies (working or not)
+        self.progress_reporter = ProgressReporter(total_proxies=len(proxies_to_test_list))
+        self.progress_reporter.display_progress()
+
         all_results = await self.test_proxies_batch(proxies_to_test_list)
 
-        # Ensure final progress is displayed
         if self.progress_reporter:
-            self.progress_reporter.display_progress() # Final update if not caught by interval
-            # sys.stdout.write("\n") # If using \r locally, to move to next line
-            # sys.stdout.flush()
+            self.progress_reporter.display_progress()
 
-        # Final sort of the output file
-        self._sort_and_finalize_proxies_file()
+        await self._sort_and_finalize_proxies_file() # <--- AWAIT THIS CALL
 
         cycle_duration = time.time() - cycle_start_time
         logger.info("-" * 60)
@@ -429,7 +411,7 @@ class ProxyTester:
         logger.info("=" * 60)
 
 async def main():
-    logger.info(f"GitHub Actions Proxy Checker v2.1 starting...")
+    logger.info(f"GitHub Actions Proxy Checker v{CONFIG['user_agent'].split('/')[-1]} starting...") # Dynamic version from UA
     logger.info(f"Full Configuration: {json.dumps(CONFIG, indent=2)}")
     
     async with ProxyTester() as tester:
@@ -440,8 +422,6 @@ async def main():
             logger.info("Received interrupt signal, shutting down...")
         except Exception as e:
             logger.error(f"Unexpected error in main execution: {type(e).__name__} - {e}", exc_info=True)
-            # In GHA, this might cause the step to fail, which is good for visibility
-            # For critical errors, re-raise or sys.exit(1) if not already exiting
             raise
 
 if __name__ == "__main__":
@@ -450,6 +430,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("Program interrupted by user.")
     except Exception as e:
-        # This catches errors from asyncio.run() itself or unhandled ones from main
         logger.error(f"Fatal error at top level: {type(e).__name__} - {e}", exc_info=True)
-        sys.exit(1) # Ensure non-zero exit code for GHA
+        sys.exit(1)
