@@ -4,7 +4,7 @@ name: Proxy Checker
 on:
   schedule:
     # Run every 30 minutes
-    - cron: '*/5 * * * *'
+    - cron: '*/60 * * * *'
   workflow_dispatch: # Allow manual triggering
   push:
     branches: [ main ]
