@@ -4,7 +4,7 @@ name: Proxy Checker
 on:
   schedule:
     # Run every 30 minutes
-    - cron: '0 */2 * * *'
+    - cron: '0 */3 * * *'
   workflow_dispatch: # Allow manual triggering
   push:
     branches: [ main ]
@@ -16,7 +16,7 @@ on:
 jobs:
   check-proxies:
     runs-on: ubuntu-latest
-    timeout-minutes: 110  # GitHub Actions has 6 hour limit, but we want shorter cycles
+    timeout-minutes: 170  # GitHub Actions has 6 hour limit, but we want shorter cycles
 
     permissions:
       contents: write  # Required to commit changes
@@ -52,7 +52,7 @@ jobs:
     - name: Run proxy checker
       run: |
         python proxy_checker.py
-      timeout-minutes: 110
+      timeout-minutes: 160
 
     - name: Check if proxies.txt was created/updated
       run: |
