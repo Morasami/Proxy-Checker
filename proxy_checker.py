@@ -418,24 +418,15 @@ class ProxyTester:
         self.working_proxies = working_proxies
 
 async def main():
-    """Main execution loop"""
+    """Main execution - single cycle for GitHub Actions"""
     logger.info("GitHub Actions Proxy Checker starting...")
     logger.info(f"Configuration: {json.dumps(CONFIG, indent=2)}")
     
     async with ProxyTester() as tester:
-        cycle_count = 0
-        
         try:
-            while True:
-                cycle_count += 1
-                logger.info(f"\n🔄 Starting cycle #{cycle_count}")
-                
-                await tester.run_cycle()
-                
-                # Cooldown
-                cooldown_seconds = CONFIG["cooldown_minutes"] * 60
-                logger.info(f"💤 Sleeping for {CONFIG['cooldown_minutes']} minutes...")
-                await asyncio.sleep(cooldown_seconds)
+            logger.info("🔄 Running proxy check cycle")
+            await tester.run_cycle()
+            logger.info("✅ Proxy check completed successfully")
                 
         except KeyboardInterrupt:
             logger.info("Received interrupt signal, shutting down...")
