@@ -36,7 +36,6 @@ https://cdn.jsdelivr.net/gh/hendrikbgr/Free-Proxy-Repo/proxy_list.txt
 https://raw.githubusercontent.com/hendrikbgr/Free-Proxy-Repo/refs/heads/master/proxy_list.txt
 https://cdn.jsdelivr.net/gh/jetkai/proxy-list/online-proxies/txt/proxies-http.txt
 https://cdn.jsdelivr.net/gh/mertguvencli/http-proxy-list/proxy-list/data.txt
-https://cdn.jsdelivr.net/gh/mmpx12/proxy-list/https.txt
 https://cdn.jsdelivr.net/gh/roosterkid/openproxylist/HTTPS_RAW.txt
 https://cdn.jsdelivr.net/gh/saschazesiger/Free-Proxies/proxies/http.txt
 https://cdn.jsdelivr.net/gh/ShiftyTR/Proxy-List/https.txt
@@ -78,3 +77,4 @@ https://raw.githubusercontent.com/zebbern/Proxy-Scraper/refs/heads/main/proxydum
 https://raw.githubusercontent.com/Anonym0usWork1221/Free-Proxies/refs/heads/main/proxy_files/http_proxies.txt
 https://raw.githubusercontent.com/Anonym0usWork1221/Free-Proxies/refs/heads/main/proxy_files/https_proxies.txt
 https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all
+https://advanced.name/freeproxy/6842140d83dde
