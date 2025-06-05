@@ -27,8 +27,8 @@ CONFIG = {
         "connectivity": "https://www.google.com/generate_204"
     },
     "timeout_seconds": 15,
-    "max_concurrent_fetches": 25,
-    "max_concurrent_tests": 200, # You can adjust this based on performance/GHA limits
+    "max_concurrent_fetches": 50,
+    "max_concurrent_tests": 800, # You can adjust this based on performance/GHA limits
     "user_agent": "Mozilla/5.0 (Linux; GitHub Actions) ProxyChecker/2.2", # Incremented version
     "source_fetch_timeout": 20,
     "progress_update_interval_seconds": 5, # How often to log progress summary
