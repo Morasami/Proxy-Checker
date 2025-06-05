@@ -1,0 +1,93 @@
+# GitHub Actions Workflow for Proxy Checker
+name: Proxy Checker
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allow manual triggering
+  push:
+    branches: [ main ]
+    paths: 
+      - 'proxy_checker.py'
+      - 'list.txt'
+      - '.github/workflows/proxy-checker.yml'
+
+jobs:
+  check-proxies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25  # GitHub Actions has 6 hour limit, but we want shorter cycles
+    
+    permissions:
+      contents: write  # Required to commit changes
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install aiohttp asyncio-throttle
+    
+    - name: Check if required files exist
+      run: |
+        if [ ! -f "list.txt" ]; then
+          echo "Error: list.txt not found!"
+          exit 1
+        fi
+        if [ ! -f "proxy_checker.py" ]; then
+          echo "Error: proxy_checker.py not found!"
+          exit 1
+        fi
+        echo "Required files found"
+    
+    - name: Run proxy checker
+      run: |
+        python proxy_checker.py
+      timeout-minutes: 20
+    
+    - name: Check if proxies.txt was created/updated
+      run: |
+        if [ -f "proxies.txt" ]; then
+          echo "proxies.txt exists"
+          wc -l proxies.txt
+          echo "Sample proxies:"
+          head -10 proxies.txt || true
+        else
+          echo "No proxies.txt file created"
+          touch proxies.txt  # Create empty file if none exists
+        fi
+    
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+    
+    - name: Commit and push changes
+      run: |
+        git add proxies.txt
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update working proxies - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          git push
+          echo "Changes committed and pushed"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload proxies as artifact
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: working-proxies
+        path: proxies.txt
+        retention-days: 7
