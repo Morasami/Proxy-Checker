@@ -16,7 +16,7 @@ on:
 jobs:
   check-proxies:
     runs-on: ubuntu-latest
-    timeout-minutes: 350  # GitHub Actions has 6 hour limit, but we want shorter cycles
+    timeout-minutes: 110  # GitHub Actions has 6 hour limit, but we want shorter cycles
 
     permissions:
       contents: write  # Required to commit changes
@@ -52,7 +52,7 @@ jobs:
     - name: Run proxy checker
       run: |
         python proxy_checker.py
-      timeout-minutes: 20
+      timeout-minutes: 110
 
     - name: Check if proxies.txt was created/updated
       run: |
