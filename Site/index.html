@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxy Status Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <i class="fas fa-shield-alt"></i>
+                    <h1>Proxy Status Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <div class="last-update">
+                        <i class="fas fa-clock"></i>
+                        <span id="lastUpdate">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Status Cards -->
+            <div class="stats-grid">
+                <div class="stat-card working">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Working Proxies</h3>
+                        <span class="stat-number" id="workingCount">-</span>
+                        <span class="stat-label">Currently Active</span>
+                    </div>
+                </div>
+
+                <div class="stat-card total">
+                    <div class="stat-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Total Tested</h3>
+                        <span class="stat-number" id="totalTested">-</span>
+                        <span class="stat-label">In Last Check</span>
+                    </div>
+                </div>
+
+                <div class="stat-card success-rate">
+                    <div class="stat-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Success Rate</h3>
+                        <span class="stat-number" id="successRate">-%</span>
+                        <span class="stat-label">Proxy Reliability</span>
+                    </div>
+                </div>
+
+                <div class="stat-card status">
+                    <div class="stat-icon">
+                        <i class="fas fa-heartbeat" id="statusIcon"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>System Status</h3>
+                        <span class="stat-number" id="systemStatus">Checking...</span>
+                        <span class="stat-label" id="statusLabel">Monitoring</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workflow Status -->
+            <div class="workflow-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-cogs"></i> Workflow Status</h2>
+                    <a href="https://github.com/Morasami/Proxy-Checker/actions" target="_blank" class="view-actions-btn">
+                        <i class="fas fa-external-link-alt"></i> View Actions
+                    </a>
+                </div>
+                
+                <div class="workflow-card">
+                    <div class="workflow-status" id="workflowStatus">
+                        <div class="status-indicator" id="workflowIndicator"></div>
+                        <span id="workflowStatusText">Loading...</span>
+                    </div>
+                    <div class="workflow-details">
+                        <div class="workflow-detail">
+                            <span class="detail-label">Last Run:</span>
+                            <span class="detail-value" id="lastRunTime">-</span>
+                        </div>
+                        <div class="workflow-detail">
+                            <span class="detail-label">Duration:</span>
+                            <span class="detail-value" id="runDuration">-</span>
+                        </div>
+                        <div class="workflow-detail">
+                            <span class="detail-label">Next Check:</span>
+                            <span class="detail-value" id="nextCheck">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Proxy Sources -->
+            <div class="sources-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-list"></i> Proxy Sources</h2>
+                    <span class="source-count" id="sourceCount">Loading sources...</span>
+                </div>
+                
+                <div class="sources-grid" id="sourcesGrid">
+                    <!-- Sources will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Recent Proxies -->
+            <div class="proxies-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-network-wired"></i> Recent Working Proxies</h2>
+                    <div class="proxy-actions">
+                        <button class="btn btn-secondary" id="refreshBtn">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button class="btn btn-primary" id="downloadBtn">
+                            <i class="fas fa-download"></i> Download List
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="proxy-list-container">
+                    <div class="proxy-filter">
+                        <input type="text" id="proxySearch" placeholder="Search proxies..." class="search-input">
+                        <select id="proxyFilter" class="filter-select">
+                            <option value="all">All Proxies</option>
+                            <option value="http">HTTP Only</option>
+                            <option value="https">HTTPS Compatible</option>
+                        </select>
+                    </div>
+                    
+                    <div class="proxy-list" id="proxyList">
+                        <div class="loading-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading proxy data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="footer-content">
+                <p>&copy; 2024 Proxy Status Dashboard. Powered by GitHub Actions.</p>
+                <div class="footer-links">
+                    <a href="https://github.com/Morasami/Proxy-Checker" target="_blank">
+                        <i class="fab fa-github"></i> Source Code
+                    </a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading dashboard data...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
