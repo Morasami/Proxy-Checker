@@ -1,0 +1,28 @@
+# GitHub Pages configuration
+title: "Proxy Status Dashboard"
+description: "Real-time proxy status monitoring dashboard"
+url: "https://morasami.github.io"
+baseurl: "/Proxy-Checker"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+sass:
+  sass_dir: _sass
+  style: compressed
+
+# Exclude files from processing
+exclude:
+  - proxy_checker.py
+  - list.txt
+  - proxies.txt
+  - README.md
+  - requirements.txt
+
+# Include files
+include:
+  - _headers
+
+plugins:
+  - jekyll-sitemap
+  - jekyll-feed
