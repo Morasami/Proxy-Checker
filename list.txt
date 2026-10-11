@@ -78,3 +78,4 @@ https://raw.githubusercontent.com/Anonym0usWork1221/Free-Proxies/refs/heads/main
 https://raw.githubusercontent.com/Anonym0usWork1221/Free-Proxies/refs/heads/main/proxy_files/https_proxies.txt
 https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all
 https://advanced.name/freeproxy/6842140d83dde
+https://rcloak.com/api/proxies/raw?protocol=http
